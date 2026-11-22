@@ -7,20 +7,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import com.example.ui.components.HapticHelper
+import kotlinx.coroutines.delay
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -30,192 +32,125 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ExerciseEntity
-import com.example.ui.LingoMindViewModel
+import com.example.ui.semaViewModel
 import com.example.ui.theme.*
-
-// --- Tactile 3D Button ---
-@Composable
-fun TactileButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    backgroundColor: Color = DuolingoGreen,
-    shadowColor: Color = Color(0xFF3B8A01),
-    contentColor: Color = Color.White,
-    content: @Composable RowScope.() -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    var isPressed by remember { mutableStateOf(false) }
-
-    val offsetVal by animateDpAsState(
-        targetValue = if (isPressed) 2.dp else 0.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "press_offset"
-    )
-
-    Box(
-        modifier = modifier
-            .padding(bottom = 6.dp)
-            .clickable(
-                enabled = enabled,
-                onClick = onClick,
-                interactionSource = interactionSource,
-                indication = null
-            )
-    ) {
-        // Shadow Layer
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .offset(y = 6.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(if (enabled) shadowColor else Color(0xFF474E3E))
-        )
-
-        // Main Button Layer
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset(y = offsetVal)
-                .clip(RoundedCornerShape(14.dp))
-                .background(if (enabled) backgroundColor else Color(0xFF31372A))
-                .border(
-                    BorderStroke(2.dp, if (enabled) Color.White.copy(alpha = 0.15f) else Color.Transparent),
-                    RoundedCornerShape(14.dp)
-                )
-                .padding(vertical = 14.dp, horizontal = 16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CompositionLocalProvider(
-                LocalContentColor provides if (enabled) contentColor else Color(0xFF8B947C)
-            ) {
-                content()
-            }
-        }
-    }
-}
-
-// --- Tactile Card Option ---
-@Composable
-fun TactileCardOption(
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    selectedColor: Color = ElectricIndigo,
-    content: @Composable BoxScope.() -> Unit
-) {
-    val borderThickness = if (selected) 3.dp else 2.dp
-    val borderColor = if (selected) selectedColor else Color(0xFF414A36)
-    val cardBackground = if (selected) selectedColor.copy(alpha = 0.15f) else DarkSurface
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(cardBackground)
-            .border(BorderStroke(borderThickness, borderColor), RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(16.dp)
-    ) {
-        content()
-    }
-}
+import com.example.ui.theme.semaIcons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.VolumeUp
 
 // --- Top Progress Bar ---
 @Composable
 fun ExerciseProgressBar(
-    progress: Float, // 0.0f to 1.0f
+    progress: Float,
     hearts: Int,
     gems: Int,
-    onCloseClick: () -> Unit
+    onCloseClick: () -> Unit,
+    showHeartLoss: Boolean = false,
+    onHeartLossShown: () -> Unit = {}
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        // Close Button
-        IconButton(onClick = onCloseClick) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "إغلاق الدرس",
-                tint = OnSurfaceLight
-            )
-        }
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "progress"
+    )
 
-        // Progress Bar Track
-        Box(
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .height(18.dp)
-                .padding(horizontal = 12.dp)
-                .clip(CircleShape)
-                .background(DarkSurfaceHighest)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Actual Progress Fill
+            semaIconButton(
+                onClick = onCloseClick,
+                content = {
+                    Icon(
+                        imageVector = semaIcons.close(),
+                        contentDescription = "إغلاق الدرس",
+                        tint = TextPrimary
+                    )
+                }
+            )
+
             Box(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(progress)
+                    .weight(1f)
+                    .height(18.dp)
+                    .padding(horizontal = 12.dp)
                     .clip(CircleShape)
-                    .background(DuolingoGreen)
+                    .background(SurfaceVariant)
             ) {
-                // Shiny highlight line
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .background(Color.White.copy(alpha = 0.2f))
-                )
+                        .fillMaxHeight()
+                        .fillMaxWidth(animatedProgress)
+                        .clip(CircleShape)
+                        .background(SuccessGreen)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .background(Color.White.copy(alpha = 0.2f))
+                    )
+                }
             }
-        }
 
-        // Stats Display
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Hearts
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = semaIcons.favorite(),
+                            contentDescription = "القلوب",
+                            tint = ErrorRed,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = hearts.toString(),
+                            color = ErrorRed,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    if (showHeartLoss) {
+                        FloatUpText(
+                            text = "-1",
+                            color = ErrorRed,
+                            modifier = Modifier.align(Alignment.TopStart).offset(x = (-8).dp, y = (-4).dp)
+                        )
+                        LaunchedEffect(Unit) {
+                            delay(800)
+                            onHeartLossShown()
+                        }
+                    }
+                }
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = hearts.toString(),
-                    color = DuolingoRed,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
                 Icon(
-                    imageVector = Icons.Default.Favorite,
-                    contentDescription = "القلوب",
-                    tint = DuolingoRed,
+                    imageVector = semaIcons.diamond(),
+                    contentDescription = "الجواهر",
+                    tint = PrimaryBlue,
                     modifier = Modifier.size(20.dp)
                 )
-            }
-
-            // Gems
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
                 Text(
                     text = gems.toString(),
-                    color = DiamondBlue,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                Text(
-                    text = "💎",
-                    fontSize = 16.sp
+                    color = PrimaryBlue,
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
+            }
         }
-    }
 }
 
 // --- Bottom Feedback Sheet ---
@@ -227,40 +162,38 @@ fun ExerciseFeedbackBar(
     explanationAr: String,
     onContinueClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val barColor = when {
-        isFreeWriting -> DarkSurfaceHigh
-        isCorrect -> DuolingoGreenDark
-        else -> DuolingoRedDark
-    }
-
-    val iconEmoji = when {
-        isFreeWriting -> "✍️"
-        isCorrect -> listOf("🎉", "🔥", "✨", "🎯", "🙌").random()
-        else -> "❌"
+        isFreeWriting -> SurfaceVariant
+        isCorrect -> SuccessGreen.copy(alpha = 0.15f)
+        else -> ErrorRed.copy(alpha = 0.15f)
     }
 
     val titleText = when {
         isFreeWriting -> "تم إرسال تمرينك الحُر!"
-        isCorrect -> listOf("ممتاز!", "رائع!", "إجابة صحيحة!", "🔥 عبقري!", "مذهل!").random()
+        isCorrect -> "أحسنت!"
         else -> "إجابة خاطئة!"
     }
 
     val titleColor = when {
-        isFreeWriting -> DiamondBlue
-        isCorrect -> DuolingoGreen
-        else -> DuolingoRed
+        isFreeWriting -> PrimaryBlue
+        isCorrect -> SuccessGreen
+        else -> ErrorRed
     }
 
     val buttonBg = when {
-        isFreeWriting -> DiamondBlue
-        isCorrect -> DuolingoGreen
-        else -> DuolingoRed
+        isFreeWriting -> PrimaryBlue
+        isCorrect -> SuccessGreen
+        else -> ErrorRed
     }
 
-    val buttonShadow = when {
-        isFreeWriting -> Color(0xFF0C82B5)
-        isCorrect -> Color(0xFF3B8A01)
-        else -> Color(0xFF9E1B1B)
+    // Trigger haptic feedback when feedback bar appears
+    LaunchedEffect(isCorrect) {
+        if (isCorrect) {
+            HapticHelper.performHapticSuccess(context)
+        } else if (!isFreeWriting) {
+            HapticHelper.performHapticError(context)
+        }
     }
 
     Box(
@@ -279,62 +212,61 @@ fun ExerciseFeedbackBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Feedback icon wrapper
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = iconEmoji, fontSize = 24.sp)
-                }
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = when {
+isCorrect -> semaIcons.check()
+else -> semaIcons.close()
+                                },
+                                contentDescription = null,
+                                tint = titleColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
 
                 Column {
                     Text(
                         text = titleText,
                         color = titleColor,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 20.sp
+                        style = MaterialTheme.typography.headlineSmall
                     )
 
                     if (!isCorrect && !isFreeWriting && correctAnswer != null) {
                         Text(
                             text = "الإجابة الصحيحة: $correctAnswer",
-                            color = OnSurfaceLight,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
+                            color = TextPrimary,
                             modifier = Modifier.padding(top = 4.dp),
-                            style = TextStyle(textDirection = TextDirection.Ltr)
+                            style = TextStyle(textDirection = TextDirection.Ltr, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         )
                     }
                 }
             }
 
-            // Arabic explanation text
             if (explanationAr.isNotEmpty()) {
                 Text(
                     text = explanationAr,
-                    color = OnSurfaceVariantLight,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Start
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action Button
-            TactileButton(
+            semaButton(
                 onClick = onContinueClick,
                 backgroundColor = buttonBg,
-                shadowColor = buttonShadow,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = "متابعة",
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 16.sp
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
         }
@@ -353,12 +285,10 @@ fun McqExerciseView(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Arabic prompt
         Text(
             text = prompt,
-            color = OnSurfaceLight,
-            fontWeight = FontWeight.Black,
-            fontSize = 20.sp,
+            color = TextPrimary,
+            style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -366,7 +296,7 @@ fun McqExerciseView(
         Spacer(modifier = Modifier.height(12.dp))
 
         options.forEachIndexed { index, option ->
-            TactileCardOption(
+            semaCardOption(
                 selected = (selectedOption == index),
                 onClick = { onOptionSelected(index) }
             ) {
@@ -375,31 +305,26 @@ fun McqExerciseView(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Option index number indicator
                     Box(
                         modifier = Modifier
                             .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (selectedOption == index) ElectricIndigo else DarkSurfaceHighest)
-                            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(8.dp)),
+                            .clip(MaterialTheme.shapes.small)
+                            .background(if (selectedOption == index) PrimaryBlue else SurfaceVariant)
+                            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)), MaterialTheme.shapes.small),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = (index + 1).toString(),
-                            color = OnSurfaceLight,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.labelLarge
                         )
                     }
 
-                    // Option Text
                     Text(
                         text = option,
-                        color = OnSurfaceLight,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        textAlign = TextAlign.End,
-                        style = TextStyle(textDirection = TextDirection.Ltr)
+                        color = TextPrimary,
+                        style = TextStyle(textDirection = TextDirection.Ltr, fontSize = MaterialTheme.typography.titleMedium.fontSize),
+                        textAlign = TextAlign.End
                     )
                 }
             }
@@ -411,7 +336,7 @@ fun McqExerciseView(
 @Composable
 fun FillBlankExerciseView(
     prompt: String,
-    sentence: String, // e.g. "She ___ to market."
+    sentence: String,
     wordBank: List<String>,
     selectedWords: List<String>,
     onChipSelected: (String) -> Unit,
@@ -421,17 +346,14 @@ fun FillBlankExerciseView(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Arabic Prompt
         Text(
             text = prompt,
-            color = OnSurfaceLight,
-            fontWeight = FontWeight.Black,
-            fontSize = 20.sp,
+            color = TextPrimary,
+            style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Sentence with placeholder or filled answer
         val parts = sentence.split("___")
         Row(
             modifier = Modifier
@@ -443,50 +365,31 @@ fun FillBlankExerciseView(
             if (parts.isNotEmpty()) {
                 Text(
                     text = parts[0],
-                    color = OnSurfaceLight,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    style = TextStyle(textDirection = TextDirection.Ltr)
+                    color = TextPrimary,
+                    style = TextStyle(textDirection = TextDirection.Ltr, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 )
 
-                // The blank area
                 if (selectedWords.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(ElectricIndigo.copy(alpha = 0.2f))
-                            .border(BorderStroke(2.dp, ElectricIndigo), RoundedCornerShape(12.dp))
-                            .clickable { onChipDeselected(selectedWords[0]) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = selectedWords[0],
-                            color = OnSurfaceLight,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            style = TextStyle(textDirection = TextDirection.Ltr)
-                        )
-                    }
+                    semaChip(
+                        text = selectedWords[0],
+                        selected = true,
+                        onClick = { onChipDeselected(selectedWords[0]) }
+                    )
                 } else {
-                    // Empty blank indicator
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 8.dp)
                             .width(80.dp)
                             .height(36.dp)
-                            .background(Color.Transparent)
-                            .border(BorderStroke(2.dp, Color.White.copy(alpha = 0.3f)), RoundedCornerShape(8.dp))
+                            .border(2.dp, Color.White.copy(alpha = 0.3f), MaterialTheme.shapes.small)
                     )
                 }
 
                 if (parts.size > 1) {
                     Text(
                         text = parts[1],
-                        color = OnSurfaceLight,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        style = TextStyle(textDirection = TextDirection.Ltr)
+                        color = TextPrimary,
+                        style = TextStyle(textDirection = TextDirection.Ltr, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     )
                 }
             }
@@ -494,12 +397,10 @@ fun FillBlankExerciseView(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Word Bank Chips Pool
         Text(
             text = "مخزن الكلمات:",
-            color = OnSurfaceVariantLight,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
+            color = TextSecondary,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Start
         )
@@ -510,22 +411,11 @@ fun FillBlankExerciseView(
             modifier = Modifier.fillMaxWidth()
         ) {
             wordBank.forEach { word ->
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurfaceHigh)
-                        .border(BorderStroke(2.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(12.dp))
-                        .clickable { onChipSelected(word) }
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Text(
-                        text = word,
-                        color = OnSurfaceLight,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        style = TextStyle(textDirection = TextDirection.Ltr)
-                    )
-                }
+                semaChip(
+                    text = word,
+                    selected = false,
+                    onClick = { onChipSelected(word) }
+                )
             }
         }
     }
@@ -544,53 +434,39 @@ fun ReorderExerciseView(
         verticalArrangement = Arrangement.spacedBy(20.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Arabic prompt
         Text(
             text = prompt,
-            color = OnSurfaceLight,
-            fontWeight = FontWeight.Black,
-            fontSize = 20.sp,
+            color = TextPrimary,
+            style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Sentence assembly zone
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 120.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(DarkSurface)
-                .border(BorderStroke(2.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(16.dp))
+                .clip(MaterialTheme.shapes.medium)
+                .background(SurfaceDark)
+                .border(BorderStroke(2.dp, Color.White.copy(alpha = 0.08f)), MaterialTheme.shapes.medium)
                 .padding(16.dp),
             contentAlignment = Alignment.TopStart
         ) {
             if (selectedWords.isEmpty()) {
                 Text(
                     text = "اضغط على الكلمات بالأسفل لترتيبها هنا...",
-                    color = OnSurfaceVariantLight.copy(alpha = 0.5f),
-                    fontSize = 15.sp,
+                    color = TextSecondary.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
                 FlowRowLayout(horizontalGap = 8.dp, verticalGap = 8.dp) {
                     selectedWords.forEach { word ->
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(ElectricIndigo.copy(alpha = 0.2f))
-                                .border(BorderStroke(2.dp, ElectricIndigo), RoundedCornerShape(12.dp))
-                                .clickable { onChipDeselected(word) }
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = word,
-                                color = OnSurfaceLight,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                style = TextStyle(textDirection = TextDirection.Ltr)
-                            )
-                        }
+                        semaChip(
+                            text = word,
+                            selected = true,
+                            onClick = { onChipDeselected(word) }
+                        )
                     }
                 }
             }
@@ -598,29 +474,17 @@ fun ReorderExerciseView(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Word Bank Chips Pool
         FlowRowLayout(
             horizontalGap = 8.dp,
             verticalGap = 8.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             remainingWords.forEach { word ->
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurfaceHigh)
-                        .border(BorderStroke(2.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(12.dp))
-                        .clickable { onChipSelected(word) }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = word,
-                        color = OnSurfaceLight,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        style = TextStyle(textDirection = TextDirection.Ltr)
-                    )
-                }
+                semaChip(
+                    text = word,
+                    selected = false,
+                    onClick = { onChipSelected(word) }
+                )
             }
         }
     }
@@ -639,73 +503,59 @@ fun TransformExerciseView(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Arabic prompt
         Text(
             text = prompt,
-            color = OnSurfaceLight,
-            fontWeight = FontWeight.Black,
-            fontSize = 20.sp,
+            color = TextPrimary,
+            style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Original Sentence Card
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(ElectricIndigo.copy(alpha = 0.1f))
-                .border(BorderStroke(2.dp, ElectricIndigo.copy(alpha = 0.3f)), RoundedCornerShape(16.dp))
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        semaCard {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
                     text = "الجملة الأصلية:",
-                    color = ElectricIndigo,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
+                    color = PrimaryBlue,
+                    style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
                 Text(
                     text = originalSentence,
-                    color = OnSurfaceLight,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 18.sp,
-                    style = TextStyle(textDirection = TextDirection.Ltr)
+                    color = TextPrimary,
+                    style = TextStyle(textDirection = TextDirection.Ltr, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 )
             }
         }
 
-        // Instruction
         Text(
-            text = "💡 التوجيه: $instructionAr",
-            color = GildedAmber,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
+            text = "التوجيه: $instructionAr",
+            color = XpYellow,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Free typing answer
         OutlinedTextField(
             value = textAnswer,
             onValueChange = onAnswerChanged,
             modifier = Modifier.fillMaxWidth(),
             textStyle = TextStyle(
                 textDirection = TextDirection.Ltr,
-                color = OnSurfaceLight,
+                color = TextPrimary,
                 fontSize = 16.sp
             ),
             placeholder = { Text("اكتب الإجابة بالإنجليزية هنا...") },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = OnSurfaceLight,
-                unfocusedTextColor = OnSurfaceLight,
-                focusedBorderColor = ElectricIndigo,
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                focusedBorderColor = PrimaryBlue,
                 unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                focusedContainerColor = DarkSurface,
-                unfocusedContainerColor = DarkSurface
+                focusedContainerColor = SurfaceDark,
+                unfocusedContainerColor = SurfaceDark
             ),
-            shape = RoundedCornerShape(14.dp),
+            shape = MaterialTheme.shapes.medium,
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
         )
@@ -729,42 +579,32 @@ fun FreeWritingExerciseView(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Arabic prompt
         Text(
             text = prompt,
-            color = OnSurfaceLight,
-            fontWeight = FontWeight.Black,
-            fontSize = 20.sp,
+            color = TextPrimary,
+            style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Topic Card
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White.copy(alpha = 0.05f))
-                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(16.dp))
-                .padding(16.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        semaCard {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
                     text = "الموضوع المطلوب:",
-                    color = GildedAmber,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
+                    color = XpYellow,
+                    style = MaterialTheme.typography.labelLarge
                 )
                 Text(
                     text = topicAr,
-                    color = OnSurfaceLight,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
         }
 
-        // Live stats indicator
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -772,19 +612,16 @@ fun FreeWritingExerciseView(
         ) {
             Text(
                 text = "الحد الأدنى: $minWords كلمة",
-                color = OnSurfaceVariantLight,
-                fontSize = 13.sp
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodySmall
             )
-
             Text(
                 text = "العدد الحالي: $wordCount كلمة",
-                color = if (wordCount >= minWords) DuolingoGreen else DuolingoRed,
-                fontWeight = FontWeight.Black,
-                fontSize = 13.sp
+                color = if (wordCount >= minWords) SuccessGreen else ErrorRed,
+                style = MaterialTheme.typography.labelLarge
             )
         }
 
-        // Area for long typing
         OutlinedTextField(
             value = textAnswer,
             onValueChange = onAnswerChanged,
@@ -793,20 +630,188 @@ fun FreeWritingExerciseView(
                 .height(180.dp),
             textStyle = TextStyle(
                 textDirection = TextDirection.Ltr,
-                color = OnSurfaceLight,
+                color = TextPrimary,
                 fontSize = 16.sp
             ),
             placeholder = { Text("اكتب موضوعك بالإنجليزية هنا بالتفصيل...") },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = OnSurfaceLight,
-                unfocusedTextColor = OnSurfaceLight,
-                focusedBorderColor = ElectricIndigo,
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                focusedBorderColor = PrimaryBlue,
                 unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                focusedContainerColor = DarkSurface,
-                unfocusedContainerColor = DarkSurface
+                focusedContainerColor = SurfaceDark,
+                unfocusedContainerColor = SurfaceDark
             ),
-            shape = RoundedCornerShape(16.dp)
+            shape = MaterialTheme.shapes.medium
         )
+    }
+}
+
+// --- Tactile Card Option ---
+@Composable
+fun semaCardOption(
+    selected: Boolean,
+    onClick: () -> Unit,
+    isCorrect: Boolean? = null,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "option_press"
+    )
+
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            isCorrect == true -> SuccessGreen
+            isCorrect == false -> ErrorRed
+            selected -> PrimaryBlue
+            else -> Color.White.copy(alpha = 0.1f)
+        },
+        animationSpec = tween(300),
+        label = "option_border"
+    )
+
+    val bgColor by animateColorAsState(
+        targetValue = when {
+            isCorrect == true -> SuccessGreen.copy(alpha = 0.15f)
+            isCorrect == false -> ErrorRed.copy(alpha = 0.15f)
+            selected -> PrimaryBlue.copy(alpha = 0.15f)
+            else -> SurfaceDark
+        },
+        animationSpec = tween(300),
+        label = "option_bg"
+    )
+
+    val borderThickness = if (selected || isCorrect != null) 3.dp else 2.dp
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
+            .clip(MaterialTheme.shapes.medium)
+            .background(bgColor)
+            .border(BorderStroke(borderThickness, borderColor), MaterialTheme.shapes.medium)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(16.dp)
+    ) {
+        content()
+    }
+}
+
+// --- Listening Exercise View ---
+@Composable
+fun ListeningExerciseView(
+    prompt: String,
+    audioUrl: String,
+    transcript: String,
+    question: String,
+    options: List<String>,
+    selectedOption: Int?,
+    onOptionSelected: (Int) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = prompt,
+            style = MaterialTheme.typography.titleLarge,
+            color = TextPrimary
+        )
+
+        // Audio player card
+        semaCard {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.VolumeUp,
+                    contentDescription = "تشغيل الصوت",
+                    tint = PrimaryBlue,
+                    modifier = Modifier.size(48.dp)
+                )
+
+                // Play button
+                var isPlaying by remember { mutableStateOf(false) }
+                semaButton(
+                    onClick = { isPlaying = !isPlaying },
+                    backgroundColor = PrimaryBlue
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "إيقاف" else "تشغيل",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isPlaying) "إيقاف" else "تشغيل التسجيل")
+                }
+            }
+        }
+
+        // Question
+        Text(
+            text = question,
+            style = MaterialTheme.typography.titleMedium,
+            color = TextPrimary
+        )
+
+        // MCQ options
+        options.forEachIndexed { index, option ->
+            val isSelected = selectedOption == index
+            val bgColor = if (isSelected) PrimaryBlue.copy(alpha = 0.15f) else SurfaceDark
+            val borderColor = if (isSelected) PrimaryBlue else Outline
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(bgColor)
+                    .border(2.dp, borderColor, RoundedCornerShape(16.dp))
+                    .clickable { onOptionSelected(index) }
+                    .padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(if (isSelected) PrimaryBlue else SurfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${('A' + index)}",
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = option,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextPrimary
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -814,7 +819,7 @@ fun FreeWritingExerciseView(
 @Composable
 fun ExerciseCardRouter(
     exercise: ExerciseEntity,
-    viewModel: LingoMindViewModel,
+    viewModel: semaViewModel,
     selectedOption: Int?,
     selectedWords: List<String>,
     remainingWords: List<String>,
@@ -825,8 +830,8 @@ fun ExerciseCardRouter(
     val activeReorder by viewModel.activeReorderContent.collectAsState()
     val activeTransform by viewModel.activeTransformContent.collectAsState()
     val activeFreeWriting by viewModel.activeFreeWritingContent.collectAsState()
+    val activeListening by viewModel.activeListeningContent.collectAsState()
 
-    // Render corresponding screen based on polymorphic exercise type
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         when (exercise.exerciseType) {
             "mcq" -> {
@@ -838,7 +843,7 @@ fun ExerciseCardRouter(
                         onOptionSelected = { viewModel.selectOption(it) }
                     )
                 } ?: Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = PrimaryBlue)
                 }
             }
             "fill_blank" -> {
@@ -852,7 +857,7 @@ fun ExerciseCardRouter(
                         onChipDeselected = { viewModel.deselectWordChip(it) }
                     )
                 } ?: Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = PrimaryBlue)
                 }
             }
             "reorder" -> {
@@ -865,7 +870,7 @@ fun ExerciseCardRouter(
                         onChipDeselected = { viewModel.deselectWordChip(it) }
                     )
                 } ?: Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = PrimaryBlue)
                 }
             }
             "transform" -> {
@@ -878,7 +883,7 @@ fun ExerciseCardRouter(
                         onAnswerChanged = { viewModel.updateTextAnswer(it) }
                     )
                 } ?: Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = PrimaryBlue)
                 }
             }
             "free_writing" -> {
@@ -891,14 +896,29 @@ fun ExerciseCardRouter(
                         onAnswerChanged = { viewModel.updateTextAnswer(it) }
                     )
                 } ?: Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = PrimaryBlue)
+                }
+            }
+            "listening" -> {
+                activeListening?.let { listening ->
+                    ListeningExerciseView(
+                        prompt = exercise.promptAr,
+                        audioUrl = listening.audio_url,
+                        transcript = listening.transcript,
+                        question = listening.question,
+                        options = listening.options,
+                        selectedOption = selectedOption,
+                        onOptionSelected = { viewModel.selectOption(it) }
+                    )
+                } ?: Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = PrimaryBlue)
                 }
             }
         }
     }
 }
 
-// --- FlowRow Layout Composable for layout-safe words wrapping ---
+// --- FlowRow Layout ---
 @Composable
 fun FlowRowLayout(
     horizontalGap: androidx.compose.ui.unit.Dp = 8.dp,
@@ -957,4 +977,25 @@ fun FlowRowLayout(
             }
         }
     }
+}
+
+// --- Keep TactileButton as alias for backward compatibility ---
+@Composable
+fun TactileButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    backgroundColor: Color = PrimaryBlue,
+    shadowColor: Color = PrimaryBlue.copy(alpha = 0.6f),
+    contentColor: Color = TextPrimary,
+    content: @Composable RowScope.() -> Unit
+) {
+    semaButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        backgroundColor = backgroundColor,
+        contentColor = contentColor,
+        content = content
+    )
 }

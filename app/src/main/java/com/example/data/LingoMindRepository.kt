@@ -2,7 +2,7 @@ package com.example.data
 
 import kotlinx.coroutines.flow.Flow
 
-class LingoMindRepository(private val dao: LingoMindDao) {
+class semaRepository(private val dao: semaDao) {
     fun getExercisesForLesson(lessonId: Int): Flow<List<ExerciseEntity>> {
         return dao.getExercisesForLesson(lessonId)
     }

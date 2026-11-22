@@ -1,5 +1,5 @@
 {
-  "name": "LingoMind",
+  "name": "sema",
   "description": "تطبيق لتعلم اللغات تفاعلي بأسلوب دولينجو مع بطاقات تمارين متنوعة كإكمال الفراغ، الترتيب والترجمة.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

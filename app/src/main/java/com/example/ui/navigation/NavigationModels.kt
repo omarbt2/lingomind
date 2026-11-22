@@ -1,0 +1,26 @@
+package com.example.ui.navigation
+
+sealed class MainDestination {
+    data object Tabs : MainDestination()
+    data class Lesson(val lessonId: Int) : MainDestination()
+    data class MilestoneTest(val phaseId: Int) : MainDestination()
+    data object Friends : MainDestination()
+    data object AchievementsList : MainDestination()
+    data object EditProfile : MainDestination()
+    data object FlashcardDeckOverview : MainDestination()
+    data class FlashcardReview(val deckId: Int) : MainDestination()
+    data object StreakCalendar : MainDestination()
+    data object Support : MainDestination()
+    data object Settings : MainDestination()
+    data object Bookmarks : MainDestination()
+    data object GemHistory : MainDestination()
+    data object Recap : MainDestination()
+    data object Pronunciation : MainDestination()
+    data class Listening(val lessonId: Int) : MainDestination()
+    data object AIChat : MainDestination()
+    data object Writing : MainDestination()
+    data object NotificationSettings : MainDestination()
+    data object DailyChallenges : MainDestination()
+    data class MilestoneResult(val phaseId: Int, val score: Int, val passed: Boolean) : MainDestination()
+    data object About : MainDestination()
+}

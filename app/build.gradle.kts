@@ -14,13 +14,16 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.lingomind.kxmpzq"
+    applicationId = "com.aistudio.sema.kxmpzq"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    buildConfigField("String", "SUPABASE_URL", "\"https://fpazflweyimrulwwvsdw.supabase.co\"")
+    buildConfigField("String", "SUPABASE_ANON_KEY", "\"sb_publishable_1zTxwQY4Vx-jTRaFxKYJQg__Yf703nG\"")
   }
 
   signingConfigs {
@@ -46,7 +49,7 @@ android {
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    debug { }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -73,19 +76,25 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  implementation(platform(libs.supabase.bom))
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
+  implementation("androidx.appcompat:appcompat:1.7.0")
+  // Force Kotlin stdlib version to match Kotlin compiler
+  implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
+  implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.2.10")
   // implementation(libs.androidx.camera.camera2)
   // implementation(libs.androidx.camera.core)
   // implementation(libs.androidx.camera.lifecycle)
   // implementation(libs.androidx.camera.view)
-  implementation(libs.androidx.compose.material.icons.core)
+implementation(libs.androidx.compose.material.icons.core)
   implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.compose.material3)
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
+  implementation(libs.androidx.core.splashscreen)
   // implementation(libs.androidx.datastore.preferences)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -106,9 +115,17 @@ dependencies {
   // implementation(libs.androidx.credentials)
   // implementation(libs.androidx.credentials.play.services)
   // implementation(libs.googleid)
-  implementation(libs.firebase.appcheck.recaptcha)
-  implementation(libs.kotlinx.coroutines.android)
-  implementation(libs.kotlinx.coroutines.core)
+implementation(libs.firebase.appcheck.recaptcha)
+  implementation(libs.firebase.crashlytics)
+  implementation(libs.firebase.analytics)
+implementation("io.github.jan-tennert.supabase:supabase-kt")
+implementation("io.github.jan-tennert.supabase:postgrest-kt")
+implementation("io.github.jan-tennert.supabase:auth-kt")
+implementation("io.github.jan-tennert.supabase:realtime-kt")
+implementation("io.github.jan-tennert.supabase:storage-kt")
+implementation(libs.ktor.client.cio)
+implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)

@@ -4,7 +4,7 @@ import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface LingoMindDao {
+interface semaDao {
     // Exercises
     @Query("SELECT * FROM exercises WHERE lessonId = :lessonId ORDER BY orderInLesson ASC")
     fun getExercisesForLesson(lessonId: Int): Flow<List<ExerciseEntity>>

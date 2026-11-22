@@ -1,10 +1,10 @@
 package com.example
 
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
-import com.example.ui.theme.MyApplicationTheme
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsDisplayed
+import com.example.ui.theme.semaTheme
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
-import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -17,12 +17,16 @@ import org.robolectric.annotation.GraphicsMode
 @Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
 class GreetingScreenshotTest {
 
-  @get:Rule val composeTestRule = createComposeRule()
+    @get:Rule val composeTestRule = createComposeRule()
 
-  @Test
-  fun greeting_screenshot() {
-    composeTestRule.setContent { MyApplicationTheme { Greeting("Robolectric") } }
+    @Test
+    fun app_theme_screenshot() {
+        composeTestRule.setContent {
+            semaTheme {
+                androidx.compose.material3.Text(text = "sema Test")
+            }
+        }
 
-    composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/greeting.png")
-  }
+        composeTestRule.onNodeWithText("sema Test").assertIsDisplayed()
+    }
 }

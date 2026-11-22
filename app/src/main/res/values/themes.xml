@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <style name="Theme.sema" parent="android:Theme.DeviceDefault.NoActionBar" />
 
-    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar" />
+    <style name="Theme.sema.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0F1720</item>
+        <item name="postSplashScreenTheme">@style/Theme.sema</item>
+    </style>
 </resources>

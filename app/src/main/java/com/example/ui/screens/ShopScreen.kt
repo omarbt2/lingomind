@@ -1,23 +1,17 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AcUnit
-import androidx.compose.material.icons.filled.Diamond
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,21 +19,30 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.ui.LingoMindViewModel
-import com.example.ui.components.TactileButton
+import com.example.data.UserProgressEntity
+import com.example.data.GemWalletEntity
+import com.example.data.HeartsStateEntity
+import com.example.data.StreakFreezeInventoryEntity
+import com.example.ui.semaViewModel
+import com.example.ui.components.*
 import com.example.ui.theme.*
+import com.example.ui.components.semaIconButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShopScreen(
-    viewModel: LingoMindViewModel
+    viewModel: semaViewModel,
+    onBack: () -> Unit
 ) {
     val userProgress by viewModel.userProgress.collectAsState()
-    val progress = userProgress ?: return
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val gemWallet by viewModel.gemWallet.collectAsState()
+    val heartsState by viewModel.heartsState.collectAsState()
+    val streakFreeze by viewModel.streakFreeze.collectAsState()
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
@@ -47,251 +50,265 @@ fun ShopScreen(
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
-                            text = "متجر LingoMind",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 20.sp,
-                            color = OnSurfaceLight
+                            text = "متجر sema",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = TextPrimary
                         )
                     },
+                    navigationIcon = {
+                        semaIconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = semaIcons.arrowBack(),
+                                contentDescription = "رجوع",
+                                tint = TextPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = DarkBackground
+                        containerColor = BackgroundDark
                     )
                 )
             },
-            containerColor = DarkBackground
+            containerColor = BackgroundDark
         ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Wallet Balances header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(DarkSurface)
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("رصيد الجواهر", color = OnSurfaceVariantLight, fontSize = 12.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(
-                                imageVector = Icons.Filled.Diamond,
-                                contentDescription = "Diamond",
-                                tint = DiamondBlue,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text("${progress.gems}", color = DiamondBlue, fontWeight = FontWeight.Black, fontSize = 20.sp)
-                        }
-                    }
-
-                    Box(modifier = Modifier.width(1.dp).height(40.dp).background(DarkSurfaceHigh))
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("مجمّد السلسلة", color = OnSurfaceVariantLight, fontSize = 12.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(
-                                imageVector = Icons.Filled.AcUnit,
-                                contentDescription = "Freeze",
-                                tint = DiamondBlue,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text("${progress.streakFreezeCount} / 2", color = OnSurfaceLight, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        }
-                    }
+            when {
+                isLoading -> {
+                    LoadingScreen()
                 }
-
-                // Section: Lives
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "الصحة والقلوب",
-                        color = OnSurfaceLight,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 18.sp
-                    )
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // Canvas Heart Icon with glowing outline
-                            Box(
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape)
-                                    .background(DarkSurfaceHigh),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                HeartVectorDrawing()
-                            }
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "تعبئة القلوب بالكامل",
-                                    color = OnSurfaceLight,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    text = "املأ قلوبك لزيادة فرصة ارتكاب الأخطاء والتعلم في دروسك دون توقف.",
-                                    color = OnSurfaceVariantLight,
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
-                                )
-
-                                val isHeartsFull = progress.hearts >= 5
-                                val canAffordHearts = progress.gems >= 350 && !isHeartsFull
-
-                                TactileButton(
-                                    onClick = { viewModel.rechargeHearts() },
-                                    enabled = canAffordHearts,
-                                    backgroundColor = if (canAffordHearts) RoyalCobalt else Color(0xFF1E3A63),
-                                    shadowColor = if (canAffordHearts) Color(0xFF003380) else Color(0xFF0B1930),
-                                    contentColor = Color.White
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Favorite,
-                                        contentDescription = "Hearts",
-                                        tint = if (canAffordHearts) Color.White else OnSurfaceVariantLight,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = if (isHeartsFull) "الصحة مكتملة" else "شراء لـ 350 جوهرة",
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 14.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
+                errorMessage != null -> {
+                    ErrorScreen(onRetry = { viewModel.retrySync() })
                 }
-
-                // Section: Boosters (Gel de série)
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "المعززات والحماية",
-                        color = OnSurfaceLight,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 18.sp
-                    )
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // Ice crystal vector
-                            Box(
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape)
-                                    .background(DarkSurfaceHigh),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.AcUnit,
-                                    contentDescription = "Freeze",
-                                    tint = DiamondBlue,
-                                    modifier = Modifier.size(36.dp)
-                                )
-                            }
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "مجمّد السلسلة (Gel)",
-                                        color = OnSurfaceLight,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    )
-
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(RoyalCobalt.copy(alpha = 0.15f))
-                                            .border(BorderStroke(1.dp, RoyalCobalt), RoundedCornerShape(6.dp))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = "${progress.streakFreezeCount}/2 مفعل",
-                                            color = RoyalCobalt,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 10.sp
-                                        )
-                                    }
-                                }
-
-                                Text(
-                                    text = "يحميك من فقدان السلسلة اليومية حتى لو فوّت التدريب ليوم واحد!",
-                                    color = OnSurfaceVariantLight,
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                                )
-
-                                val isBoosterFull = progress.streakFreezeCount >= 2
-                                val canAffordBooster = progress.gems >= 200 && !isBoosterFull
-
-                                TactileButton(
-                                    onClick = { viewModel.buyStreakFreeze() },
-                                    enabled = canAffordBooster,
-                                    backgroundColor = if (canAffordBooster) RoyalCobalt else Color(0xFF1E3A63),
-                                    shadowColor = if (canAffordBooster) Color(0xFF003380) else Color(0xFF0B1930),
-                                    contentColor = Color.White
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.AcUnit,
-                                        contentDescription = "Freeze",
-                                        tint = if (canAffordBooster) Color.White else OnSurfaceVariantLight,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = if (isBoosterFull) "الحماية كاملة" else "شراء لـ 200 جوهرة",
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 14.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
+                else -> {
+                    userProgress?.let { progress ->
+                        ShopContent(
+                            viewModel = viewModel,
+                            progress = progress,
+                            innerPadding = innerPadding,
+                            gemWallet = gemWallet,
+                            heartsState = heartsState,
+                            streakFreeze = streakFreeze
+                        )
+                    } ?: LoadingScreen()
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 }
 
-// --- Dynamic Canvas Heart drawing with pulse simulation ---
+@Composable
+private fun ShopContent(
+    viewModel: semaViewModel,
+    progress: UserProgressEntity,
+    innerPadding: PaddingValues,
+    gemWallet: GemWalletEntity?,
+    heartsState: HeartsStateEntity?,
+    streakFreeze: StreakFreezeInventoryEntity?
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .padding(horizontal = 16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Wallet header
+        semaCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("الجواهر", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(
+                            imageVector = semaIcons.diamond(),
+                            contentDescription = "Diamond",
+                            tint = PrimaryBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        AnimatedCounter(
+                            targetValue = gemWallet?.balance ?: 0,
+                            color = PrimaryBlue,
+                            textStyle = MaterialTheme.typography.headlineMedium
+                        )
+                    }
+                }
+
+                Box(modifier = Modifier.width(1.dp).height(40.dp).background(SurfaceVariant))
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("المجمّد", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(
+                            imageVector = semaIcons.acUnit(),
+                            contentDescription = "Freeze",
+                            tint = PrimaryBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text("${streakFreeze?.quantity ?: 0} / 2", style = MaterialTheme.typography.titleLarge, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+
+        // Lives section
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "الصحة والقلوب",
+                style = MaterialTheme.typography.titleLarge,
+                color = TextPrimary
+            )
+
+            semaCard {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    semaAvatar(
+                        size = 64.dp,
+                        backgroundColor = ErrorRed.copy(alpha = 0.15f),
+                        content = {
+                            HeartVectorDrawing()
+                        }
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "تعبئة القلوب",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "املأ قلوبك لمواصلة الدروس دون توقف.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+                        )
+
+                        val isHeartsFull = (heartsState?.hearts_count ?: 5) >= 5
+                        val canAffordHearts = (gemWallet?.balance ?: 0) >= 350 && !isHeartsFull
+
+                        semaButton(
+                            onClick = { viewModel.rechargeHearts() },
+                            enabled = canAffordHearts,
+                            backgroundColor = if (canAffordHearts) PrimaryBlue else SurfaceVariant
+                        ) {
+                            Icon(
+                                imageVector = semaIcons.favorite(),
+                                contentDescription = "Hearts",
+                                tint = if (canAffordHearts) TextPrimary else TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isHeartsFull) "القلوب مكتملة" else "شراء لـ 350 جوهرة",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Boosters section
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "المعززات",
+                style = MaterialTheme.typography.titleLarge,
+                color = TextPrimary
+            )
+
+            semaCard {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    semaAvatar(
+                        size = 64.dp,
+                        backgroundColor = PrimaryBlue.copy(alpha = 0.15f),
+                        content = {
+                            Icon(
+                                imageVector = semaIcons.acUnit(),
+                                contentDescription = "Freeze",
+                                tint = PrimaryBlue,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+Text(
+                            text = "مجمّد السلسلة",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        semaBadge(
+                            text = "${streakFreeze?.quantity ?: 0}/2 مفعل",
+                            color = PrimaryBlue
+                        )
+                    }
+
+                    Text(
+                        text = "يحميك من فقدان السلسلة حتى لو فوّته يومًا!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                    )
+
+                        val isBoosterFull = (streakFreeze?.quantity ?: 0) >= 2
+                        val canAffordBooster = (gemWallet?.balance ?: 0) >= 200 && !isBoosterFull
+
+                        semaButton(
+                            onClick = { viewModel.buyStreakFreeze() },
+                            enabled = canAffordBooster,
+                            backgroundColor = if (canAffordBooster) PrimaryBlue else SurfaceVariant
+                        ) {
+                            Icon(
+                                imageVector = semaIcons.acUnit(),
+                                contentDescription = "Freeze",
+                                tint = if (canAffordBooster) TextPrimary else TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isBoosterFull) "الحماية كاملة" else "شراء لـ 200 جوهرة",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
 @Composable
 fun HeartVectorDrawing() {
-    Canvas(modifier = Modifier.size(40.dp)) {
+    Canvas(modifier = Modifier.size(36.dp)) {
         val w = size.width
         val h = size.height
 
@@ -304,16 +321,37 @@ fun HeartVectorDrawing() {
             close()
         }
 
-        drawPath(
-            path = path,
-            color = DuolingoRed
-        )
+        drawPath(path = path, color = ErrorRed)
 
-        // Draw small inner shine spot
         drawCircle(
             color = Color.White.copy(alpha = 0.4f),
             radius = 4f,
             center = Offset(w * 0.3f, h * 0.3f)
         )
+    }
+}
+
+@Composable
+private fun LoadingScreen() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            LoadingSkeleton(modifier = Modifier.width(200.dp).height(40.dp))
+            LoadingSkeleton(modifier = Modifier.width(280.dp).height(80.dp).padding(top = 8.dp))
+            LoadingSkeleton(modifier = Modifier.width(300.dp).height(120.dp).padding(top = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun ErrorScreen(onRetry: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("تعذر تحميل البيانات", color = TextPrimary)
+            Spacer(Modifier.height(8.dp))
+            semaButton(onClick = onRetry) { Text("إعادة المحاولة") }
+        }
     }
 }
