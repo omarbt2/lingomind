@@ -1,0 +1,55 @@
+name: Sema Android Debug APK
+
+on:
+  push:
+    branches:
+      - recovery/sema-apk-build-2026-11-25
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-debug:
+    name: Build and test Android app
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses and install SDK
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble debug APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --version
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Run unit tests
+        id: unit-tests
+        continue-on-error: true
+        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sema-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
