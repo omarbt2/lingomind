@@ -1,0 +1,1 @@
+This file is a harmless push trigger for the isolated Sema Android build workflow. It does not alter application source.
