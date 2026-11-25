@@ -1,0 +1,1 @@
+Harmless CI retry trigger after correcting sdkmanager license pipe handling. Not application source.
