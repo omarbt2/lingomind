@@ -1,0 +1,1 @@
+Harmless CI trigger after removing duplicate WebP launcher resources from main. Do not merge.
